@@ -1,0 +1,110 @@
+---
+title: "Exploratory Analysis of Superfunds in Pennsylvania"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(readr)
+library(patchwork)
+library(plotly)
+library(lubridate)
+library(stringr)
+
+knitr::opts_chunk$set(echo = TRUE)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_color_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+```
+
+
+```{r plot 1, echo= FALSE, message=FALSE, warning=FALSE}
+superfund_sites =
+  read_csv("./data/superfund_NPL_sites.csv") %>% 
+  janitor::clean_names() %>% 
+  select(-region_id,-construction_completion_number, -site_listing_narrative, -site_progress_profile, -ends_with("notice"), -restoration_fr_notice_jumper_page, -noid_date, -deletion_date) %>% 
+  filter(status == "NPL Site")
+
+superfund_by_county =
+  superfund_sites %>% 
+  group_by(county) %>% 
+  summarize(n_superfund = n()) %>% 
+  mutate(
+    county = as.factor(county)) %>%
+  as.data.frame(superfund_by_county)
+
+superfund_count =
+ggplot(superfund_by_county,
+aes(x = reorder(county, -n_superfund), y = n_superfund, color = county, fill = county)) + 
+  geom_bar(stat = "identity") +
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 1),
+    legend.position = "none") +
+   labs(
+    x = " ",
+    y = "Number of Superfund Sites"
+  ) +
+  ggtitle("Pennsylvania: Number of Superfund Sites per County")
+
+ggplotly(superfund_count)
+```
+
+```{r table, echo= FALSE, message=FALSE, warning=FALSE}
+superfund_sites =
+  read_csv("./data/superfund_NPL_sites.csv") %>% 
+  janitor::clean_names() %>% 
+  select(-region_id,-construction_completion_number, -site_listing_narrative, -site_progress_profile, -ends_with("notice"), -restoration_fr_notice_jumper_page, -noid_date, -deletion_date) %>% 
+  filter(status == "NPL Site")
+
+superfund_score =
+  superfund_sites %>% 
+  group_by(county) %>% 
+  summarize(
+    n_superfund = n(),
+    mean_score = mean(site_score)) %>% 
+  mutate(
+    county = as.factor(county)) %>% 
+  arrange(desc(mean_score)) 
+```
+
+```{r plot 2, echo= FALSE, message=FALSE, warning=FALSE}
+superfund_score %>%
+knitr::kable(digits = 3,
+             col.names = c('County', 'Number of Superfunds', 'Mean Site Score'))
+
+superfund_score %>% 
+  plot_ly(x = ~county, y = ~mean_score, color = ~county, type = "bar", colors = "viridis") %>%
+ layout(
+   xaxis = list(categoryorder = "total descending", title = "County"),
+   title = "Mean Superfund Site Score by County ",
+   yaxis = list(title = "Mean Score"))
+```
+
+
+```{r plot 3, echo= FALSE, message=FALSE, warning=FALSE}
+superfund_geo =
+  superfund_sites %>% 
+  select(site_name, site_score, latitude, longitude) %>% 
+  ggplot(aes(x = latitude, y = longitude, color = site_score)) +
+  geom_point(alpha = 0.25) +
+  coord_cartesian() +
+  labs(
+    x = "Latitude",
+    y = "Longitude"
+  ) +
+  ggtitle("Location of Superunds with Site Score")
+
+ggplotly(superfund_geo)
+```
+
+
+
+
+
